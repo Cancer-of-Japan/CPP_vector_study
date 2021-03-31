@@ -14,7 +14,7 @@
 
 #define v(t, s, name, ...)
     (void)((struct{
-        _Static_assert(s <= 8, "it is too big");
+        __Static_assert(s <= 8, "it is too big");
         int dummy;
     }){1});
     union{
@@ -28,7 +28,8 @@
     name.capacity = sizeof(name.buf) / sizeof(name.buf[0])
     
 #define vec_size(v) v.size
-#define vec_capacity(v) \ (v.on_heap ? (size_t) 1 << v.capacity : sizeof(v.buf) / sizeof(v.buf[0]))
+#define vec_capacity(v) 
+    (v.on_heap ? (size_t) 1 << v.capacity : sizeof(v.buf) / sizeof(v.buf[0]))
 #define vec_data(v) (v.on_heap ? v.ptr : v.buf)
 
 #define vec_elemsize(v) sizeof(v.buf[0])
@@ -76,6 +77,54 @@ static NON_NULL void __vec_reserve(void *vec, size_t n, size_t elemsize, size_t 
     }
 }
 
+static NON_NULL void __vec_push_back (void *restrict vec, void *restrict e, size_t elemsize, size_t capacity){
+    union {
+        STRUCT_BODY(char);
+        struct{
+            size_t filler;
+            char buf[];
+        };
+    } *v = vec;
+
+    if(v -> on_heap){
+        if(v -> size == capacity){
+            v -> ptr = realloc(v -> ptr,  elemsize * (size_t) 1 << ++v->capacity);  
+        }
+        memcpy(&v -> ptr[v -> size++ * elemsize], e, elemsize);
+    }else {
+        if(v -> size == capacity){
+            void * temp = malloc(elemsize * (size_t) 1 << (v -> capacity = capacity + 1);
+            memcpy(tmp, v -> buf, elemsize * v -> size);
+            v -> ptr = temp;
+            v -> on_heap = 1;
+            memcpy(&v -> ptr[v -> size++ * elemsize], e, elemsize);
+        }else{
+            memcpy(&v -> buf[v -> size++ * elemsize], e, elemsize);
+        }
+    }
+}
+
+#define FACTOR 1.5
+#define CHUNK_SIZE 4
+static inline float ilog_factor(float n){
+    return ceilf(log2f(n)/log2f(FACTOR));
+}
+
+#define vec_capcity(v) __vec_capacity(&v)
+static size_t inline __vec_capacity(void *vec){
+    union{
+        STRUCT_BODY(char);
+        struct{
+            size_t filter;
+            char buf[];
+        };
+    }*v = vec;
+
+    if(v -> on_heap){
+        return (size_t) (pow(1.5, v -> capacity) * CHUNK_SIZE);
+    }
+    return CHUNK_SIZE;
+}
 
 
 int main(){
